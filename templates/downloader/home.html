@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Downloader</title>
+</head>
+<body>
+    <h1>Video Downloader</h1>
+    <form id="searchForm">
+        <input type="text" id="url" placeholder="Enter video URL" required>
+        <button type="submit">Search</button>
+    </form>
+    <div id="videoInfo" style="display: none;">
+        <h3 id="videoTitle"></h3>
+        <img id="videoThumbnail" alt="Video Thumbnail">
+        <form id="downloadForm">
+            <label for="format">Select format:</label>
+            <select id="format"></select>
+            <button type="submit">Download</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('searchForm').onsubmit = function(event) {
+            event.preventDefault();
+            const url = document.getElementById('url').value;
+            fetch(`/search/?url=${url}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('videoTitle').innerText = data.title;
+                    document.getElementById('videoThumbnail').src = data.thumbnail;
+                    const formatSelect = document.getElementById('format');
+                    formatSelect.innerHTML = '';
+                    data.formats.forEach(format => {
+                        const option = document.createElement('option');
+                        option.value = format.format_id;
+                        option.innerText = `${format.resolution} - ${format.filesize} bytes`;
+                        formatSelect.appendChild(option);
+                    });
+                    document.getElementById('videoInfo').style.display = 'block';
+                });
+        };
+
+        document.getElementById('downloadForm').onsubmit = function(event) {
+            event.preventDefault();
+            const url = document.getElementById('url').value;
+            const format_id = document.getElementById('format').value;
+        
+            fetch("{% url 'download_video' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ url: url, format_id: format_id })
+            })
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    throw new Error('Unexpected non-JSON response');
+                }
+            })
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    alert(data.message || "Download Successful");
+                }
+            })
+            .catch(error => {
+                alert("Error: " + error.message);
+            });
+        };
+        
+    </script>
+
+</body>
+</html>
+
